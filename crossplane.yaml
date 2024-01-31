@@ -1,0 +1,38 @@
+apiVersion: meta.pkg.crossplane.io/v1alpha1
+kind: Configuration
+metadata:
+  name: platform-ref-aws-castai
+  annotations:
+    meta.crossplane.io/maintainer: Upbound <support@upbound.io>
+    meta.crossplane.io/source: github.com/upbound/platform-ref-aws-castai
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/description: |
+      This is reference platform for CAST AI on AWS
+      CAST AI is the leading all-in-one platform for Kubernetes 
+      automation, optimization, security, and cost management.
+
+    meta.crossplane.io/readme: |
+      This is reference platform for CAST AI on AWS
+      CAST AI is the leading all-in-one platform for Kubernetes 
+      automation, optimization, security, and cost management.
+
+      The overall Composition supports the use case of full EKS Cluster deployment with CAST AI
+      This Configuration uses AWS service primitives from the [Upbound Official AWS
+      Provider](https://marketplace.upbound.io/providers/upbound/provider-family-aws/) and CAST AI 
+      service promitived from the [CAST AI Provider](https://marketplace.upbound.io/providers/crossplane-contrib/crossplane-provider-castai/).
+
+      To learn more checkout the [GitHub repo](https://github.com/upbound/platform-ref-aws-castai/)
+      that you can copy and customize to meet the exact needs of your organization!
+spec:
+  crossplane:
+    version: ">=v1.14.1-0"
+  dependsOn:
+    - configuration: xpkg.upbound.io/upbound/configuration-aws-network
+      # renovate: datasource=github-releases depName=upbound/configuration-aws-network
+      version: "v0.9.0"
+    - configuration: xpkg.upbound.io/upbound/configuration-aws-eks
+      # renovate: datasource=github-releases depName=upbound/configuration-aws-eks
+      version: "v0.7.0"
+    - configuration: xpkg.upbound.io/upbound/configuration-aws-eks-castai
+      # renovate: datasource=github-releases depName=upbound/configuration-aws-eks-castai
+      version: "v0.1.0"
