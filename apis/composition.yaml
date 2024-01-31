@@ -1,0 +1,283 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: xclusters.castai.aws.platformref.upbound.io
+spec:
+  writeConnectionSecretsToNamespace: upbound-system
+  compositeTypeRef:
+    apiVersion: castai.aws.platformref.upbound.io/v1alpha1
+    kind: XCluster
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: upbound-function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        resources:
+          - name: XNetworkAWS
+            base:
+              apiVersion: aws.platform.upbound.io/v1alpha1
+              kind: XNetwork
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.id
+                toFieldPath: spec.parameters.id
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.parameters.region
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.deletionPolicy
+                toFieldPath: spec.parameters.deletionPolicy
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.providerConfigName
+                toFieldPath: spec.parameters.providerConfigName
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.networkSelector
+                toFieldPath: spec.compositionSelector.matchLabels[type]
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.subnetIds
+                toFieldPath: status.subnetIds
+                policy:
+                  fromFieldPath: Optional
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.publicSubnetIds
+                toFieldPath: status.castai.publicSubnetIds
+                policy:
+                  fromFieldPath: Optional
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.publicSubnetIds
+                toFieldPath: status.castai.publicSubnetIds
+                policy:
+                  fromFieldPath: Optional
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.vpcId
+                toFieldPath: status.castai.vpcId
+                policy:
+                  fromFieldPath: Optional
+
+          - name: XEKS
+            base:
+              apiVersion: aws.platform.upbound.io/v1alpha1
+              kind: XEKS
+            connectionDetails:
+              - type: FromConnectionSecretKey
+                fromConnectionSecretKey: kubeconfig
+                name: kubeconfig
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.id
+                toFieldPath: metadata.labels[xeks.aws.platform.upbound.io/cluster-id]
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.id
+                toFieldPath: spec.parameters.id
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.parameters.region
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.deletionPolicy
+                toFieldPath: spec.parameters.deletionPolicy
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.providerConfigName
+                toFieldPath: spec.parameters.providerConfigName
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.id
+                toFieldPath: metadata.annotations[crossplane.io/external-name]
+              - type: FromCompositeFieldPath
+                fromFieldPath: metadata.uid
+                toFieldPath: spec.writeConnectionSecretToRef.name
+                transforms:
+                  - type: string
+                    string:
+                      fmt: '%s-eks'
+                      type: Format
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.writeConnectionSecretToRef.namespace
+                toFieldPath: spec.writeConnectionSecretToRef.namespace
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.version
+                toFieldPath: spec.parameters.version
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.nodes.count
+                toFieldPath: spec.parameters.nodes.count
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.nodes.instanceType
+                toFieldPath: spec.parameters.nodes.instanceType
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.iam.roleArn
+                toFieldPath: spec.parameters.iam.roleArn
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.iam.userArn
+                toFieldPath: spec.parameters.iam.userArn
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.eks.accountId
+                toFieldPath: status.castai.accountId
+                policy:
+                  fromFieldPath: Optional
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.eks.clusterSecurityGroupId
+                toFieldPath: status.castai.clusterSecurityGroupId
+                policy:
+                  fromFieldPath: Optional
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.eks.clusterName
+                toFieldPath: status.castai.clusterName
+                policy:
+                  fromFieldPath: Optional
+              - type: FromCompositeFieldPath
+                fromFieldPath: status.castai.instanceProfileRole
+                toFieldPath: spec.parameters.iam.autoscalerArn
+                policy:
+                  fromFieldPath: Optional
+
+          - name: XFlux
+            base:
+              apiVersion: gitops.platform.upbound.io/v1alpha1
+              kind: XFlux
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.deletionPolicy
+                toFieldPath: spec.parameters.deletionPolicy
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.id
+                toFieldPath: spec.parameters.providerConfigName
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.operators.flux.version
+                toFieldPath: spec.parameters.operators.flux.version
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.operators.flux-sync.version
+                toFieldPath: spec.parameters.operators.flux-sync.version
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.gitops
+                toFieldPath: spec.parameters.source
+
+          - name: usageXEksByXFlux
+            base:
+              apiVersion: apiextensions.crossplane.io/v1alpha1
+              kind: Usage
+              spec:
+                by:
+                  apiVersion: gitops.platform.upbound.io/v1alpha1
+                  kind: XFlux
+                  resourceSelector:
+                    matchControllerRef: true
+                of:
+                  apiVersion: aws.platform.upbound.io/v1alpha1
+                  kind: XEKS
+                  resourceSelector:
+                    matchControllerRef: true
+
+          - name: cluster-readonly-to-fullaccess
+            base:
+              apiVersion: castai.aws.platform.upbound.io/v1alpha1
+              kind: XReadOnly
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: status.castai.clusterName
+                toFieldPath: spec.parameters.clusterName
+                policy:
+                  fromFieldPath: Required
+              - type: FromCompositeFieldPath
+                fromFieldPath: status.castai.accountId
+                toFieldPath: spec.parameters.accountId
+                policy:
+                  fromFieldPath: Required
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.parameters.region
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.id
+                toFieldPath: spec.parameters.id
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.id
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.nodes.deleteNodesOnDisconnect
+                toFieldPath: spec.parameters.deleteNodesOnDisconnect
+
+          - name: usageXEksByXReadOnly
+            base:
+              apiVersion: apiextensions.crossplane.io/v1alpha1
+              kind: Usage
+              spec:
+                by:
+                  apiVersion: castai.aws.platform.upbound.io/v1alpha1
+                  kind: XReadOnly
+                  resourceSelector:
+                    matchControllerRef: true
+                of:
+                  apiVersion: aws.platform.upbound.io/v1alpha1
+                  kind: XEKS
+                  resourceSelector:
+                    matchControllerRef: true
+
+          - name: cluster-fullaccess
+            base:
+              apiVersion: castai.aws.platform.upbound.io/v1alpha1
+              kind: XFullAccess
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: status.castai.clusterName
+                toFieldPath: spec.parameters.clusterName
+                policy:
+                  fromFieldPath: Required
+              - type: FromCompositeFieldPath
+                fromFieldPath: status.castai.accountId
+                toFieldPath: spec.parameters.accountId
+                policy:
+                  fromFieldPath: Required
+              - type: FromCompositeFieldPath
+                fromFieldPath: status.castai.publicSubnetIds
+                toFieldPath: spec.parameters.subnets
+                policy:
+                  fromFieldPath: Required
+              - type: FromCompositeFieldPath
+                fromFieldPath: status.castai.clusterSecurityGroupId
+                toFieldPath: spec.parameters.securityGroups[0]
+                policy:
+                  fromFieldPath: Required
+              - type: FromCompositeFieldPath
+                fromFieldPath: status.castai.vpcId
+                toFieldPath: spec.parameters.vpc
+                policy:
+                  fromFieldPath: Required
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.parameters.region
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.id
+                toFieldPath: spec.parameters.id
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.id
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.nodes.image
+                toFieldPath: spec.parameters.image
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.nodes.deleteNodesOnDisconnect
+                toFieldPath: spec.parameters.deleteNodesOnDisconnect
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.nodes.autoscalerPolicies
+                toFieldPath: spec.parameters.autoscalerPolicies
+              - type: ToCompositeFieldPath
+                fromFieldPath: status.onboarding.instanceProfileRole
+                toFieldPath: status.castai.instanceProfileRole
+                policy:
+                  fromFieldPath: Optional
+
+          - name: usageXEksByXFullAccess
+            base:
+              apiVersion: apiextensions.crossplane.io/v1alpha1
+              kind: Usage
+              spec:
+                by:
+                  apiVersion: castai.aws.platform.upbound.io/v1alpha1
+                  kind: XFullAccess
+                  resourceSelector:
+                    matchControllerRef: true
+                of:
+                  apiVersion: aws.platform.upbound.io/v1alpha1
+                  kind: XEKS
+                  resourceSelector:
+                    matchControllerRef: true
