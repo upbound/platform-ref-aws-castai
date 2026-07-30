@@ -6,7 +6,7 @@ on:
 
 jobs:
   e2e:
-    uses: upbound/uptest/.github/workflows/pr-comment-trigger.yml@main
+    uses: upbound/uptest/.github/workflows/pr-comment-trigger.yml@c230a80440062d0f70eb03c129ca1fd05636ede4 # main
     with:
       package-type: configuration
     secrets:
